@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { Button } from '@/components/ui/button';
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -8,7 +8,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
+} from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -16,25 +16,32 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { PersonStandingIcon } from 'lucide-react';
-import Link from 'next/link';
-import { useForm } from 'react-hook-form';
-import * as z from 'zod';
-import { Input } from '@/components/ui/input';
+} from "@/components/ui/form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { CalendarIcon, PersonStandingIcon } from "lucide-react";
+import Link from "next/link";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
 
 const formSchema = z
   .object({
     email: z.string().email(),
-    accountType: z.enum(['personal', 'company']),
+    accountType: z.enum(["personal", "company"]),
     companyName: z.string().optional(),
     numberOfEmployees: z.coerce.number().optional(),
     dob: z.date().refine((date) => {
@@ -46,25 +53,25 @@ const formSchema = z
       // );
       // return date <= eighteedYearsAgo;
       return date.getFullYear() <= today.getFullYear() - 18;
-    }, 'You must beat least 18 years old'),
+    }, "You must beat least 18 years old"),
   })
   .superRefine((data, context) => {
-    if (data.accountType === 'company' && !data.companyName) {
+    if (data.accountType === "company" && !data.companyName) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ['companyName'],
-        message: 'Company name is required',
+        path: ["companyName"],
+        message: "Company name is required",
       });
     }
 
     if (
-      data.accountType === 'company' &&
+      data.accountType === "company" &&
       (!data.numberOfEmployees || data.numberOfEmployees < 1)
     ) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ['numberOfEmployees'],
-        message: 'Number of employees is required',
+        path: ["numberOfEmployees"],
+        message: "Number of employees is required",
       });
     }
   });
@@ -73,15 +80,18 @@ export default function SignupPage() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: '',
+      email: "",
     },
   });
 
   const handleSubmit = () => {
-    console.log('login validation passed');
+    console.log("login validation passed");
   };
 
-  const accountType = form.watch('accountType');
+  const accountType = form.watch("accountType");
+
+  const dobFromDate = new Date();
+  dobFromDate.setFullYear(dobFromDate.getFullYear() - 120);
 
   return (
     <>
@@ -135,7 +145,7 @@ export default function SignupPage() {
                   </FormItem>
                 )}
               />
-              {accountType === 'company' && (
+              {accountType === "company" && (
                 <>
                   <FormField
                     control={form.control}
@@ -174,6 +184,50 @@ export default function SignupPage() {
                   />
                 </>
               )}
+              <FormField
+                control={form.control}
+                name="dob"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col pt-2">
+                    <FormLabel>Date of birth</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            className="normal-case flex justify-between pr-1"
+                          >
+                            {!!field.value ? (
+                              format(field.value, "PPP")
+                            ) : (
+                              <span>Pick a date</span>
+                            )}
+                            <CalendarIcon />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          defaultMonth={field.value}
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          fixedWeeks
+                          weekStartsOn={1}
+                          fromDate={dobFromDate}
+                          toDate={new Date()}
+                          // disabled={[new Date("2025-02-03")]}
+                          // disabled={(date) => {
+                          //   return date.getDay() === 0 || date.getDay() === 6
+                          // }}
+                          captionLayout="dropdown-buttons"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <Button type="submit">Sign up</Button>
             </form>
           </Form>
