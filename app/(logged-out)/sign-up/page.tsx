@@ -12,6 +12,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -37,27 +38,19 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
+import { PasswordInput } from "@/components/ui/password-input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useRouter } from "next/navigation";
 
-const formSchema = z
+const accountTypeSchema = z
   .object({
-    email: z.string().email(),
     accountType: z.enum(["personal", "company"]),
     companyName: z.string().optional(),
     numberOfEmployees: z.coerce.number().optional(),
-    dob: z.date().refine((date) => {
-      const today = new Date();
-      // const eighteedYearsAgo = new Date(
-      //   today.getFullYear() - 18,
-      //   today.getMonth(),
-      //   today.getDate()
-      // );
-      // return date <= eighteedYearsAgo;
-      return date.getFullYear() <= today.getFullYear() - 18;
-    }, "You must beat least 18 years old"),
   })
-  .superRefine((data, context) => {
+  .superRefine((data, ctx) => {
     if (data.accountType === "company" && !data.companyName) {
-      context.addIssue({
+      ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["companyName"],
         message: "Company name is required",
@@ -68,7 +61,7 @@ const formSchema = z
       data.accountType === "company" &&
       (!data.numberOfEmployees || data.numberOfEmployees < 1)
     ) {
-      context.addIssue({
+      ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["numberOfEmployees"],
         message: "Number of employees is required",
@@ -76,16 +69,65 @@ const formSchema = z
     }
   });
 
+const passwordSchema = z
+  .object({
+    password: z
+      .string()
+      .min(8, "Password must contain at least 8 characters")
+      .refine((password) => {
+        const hasUpperCase = /[A-Z]/.test(password);
+        const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+        return hasUpperCase && hasSpecialChar;
+      }, "Password must contain at least 1 special character and 1 uppercase letter"),
+    passwordConfirm: z.string(),
+  })
+  .superRefine((data, context) => {
+    if (data.password !== data.passwordConfirm) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["passwordConfirm"],
+        message: "Passwords do not match",
+      });
+    }
+  });
+
+const baseSchema = z.object({
+  email: z.string().email(),
+  dob: z.date().refine((date) => {
+    const today = new Date();
+    // const eighteedYearsAgo = new Date(
+    //   today.getFullYear() - 18,
+    //   today.getMonth(),
+    //   today.getDate()
+    // );
+    // return date <= eighteedYearsAgo;
+    return date.getFullYear() <= today.getFullYear() - 18;
+  }, "You must beat least 18 years old"),
+  acceptTerms: z
+    .boolean({
+      required_error: "You must accept the terms and conditions",
+    })
+    .refine((checked) => checked, "You must accept the terms and conditions"),
+});
+
+const formSchema = baseSchema.and(passwordSchema).and(accountTypeSchema);
+
 export default function SignupPage() {
+  const router = useRouter();
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       email: "",
+      password: "",
+      passwordConfirm: "",
+      companyName: "",
     },
   });
 
-  const handleSubmit = () => {
-    console.log("login validation passed");
+  const handleSubmit = (data: z.infer<typeof formSchema>) => {
+    console.log("login validation passed", data);
+    router.push("/dashboard");
   };
 
   const accountType = form.watch("accountType");
@@ -176,6 +218,7 @@ export default function SignupPage() {
                             type="number"
                             min={0}
                             {...field}
+                            value={field.value ?? ""}
                           />
                         </FormControl>
                         <FormMessage />
@@ -224,6 +267,59 @@ export default function SignupPage() {
                         />
                       </PopoverContent>
                     </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <PasswordInput placeholder="••••••••" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="passwordConfirm"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirm password</FormLabel>
+                    <FormControl>
+                      <PasswordInput placeholder="••••••••" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="acceptTerms"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex gap-2 items-center">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel>I accept the terms and conditions</FormLabel>
+                    </div>
+                    <FormDescription>
+                      By signing up you agree to our{" "}
+                      <Link
+                        href="/terms"
+                        className="text-primary hover:underline"
+                      >
+                        terms and conditions
+                      </Link>
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
