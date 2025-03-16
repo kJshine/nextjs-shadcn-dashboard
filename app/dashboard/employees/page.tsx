@@ -4,7 +4,7 @@ import { setTimeout } from "timers/promises";
 import { type Employee, columns } from "./columns";
 
 export default async function EmployeePage() {
-  await setTimeout(3000);
+  await setTimeout(500);
   const employees: Employee[] = [
     {
       id: 1,
